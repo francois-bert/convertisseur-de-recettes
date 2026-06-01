@@ -1,0 +1,952 @@
+<!DOCTYPE html>
+<html lang="fr" class="scroll-smooth">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Le Convertisseur de Recettes de Cuisine</title>
+  <meta name="description" content="Convertissez vos unités de cuisine, ajustez vos portions et convertissez les températures de four instantanément." />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;700&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet" />
+
+  <script>
+    // ─── Tailwind Config ──────────────────────────────────────────────────────
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            display: ['"Playfair Display"', 'Georgia', 'serif'],
+            body: ['"DM Sans"', 'sans-serif'],
+          },
+          colors: {
+            mint: {
+              50:  '#f0faf4',
+              100: '#d8f3e3',
+              200: '#b4e8cc',
+              300: '#7dd5ab',
+              400: '#44bc85',
+              500: '#22a268',
+              600: '#178153',
+              700: '#136644',
+              800: '#115237',
+              900: '#0e422d',
+            },
+            ember: {
+              50:  '#fff8f0',
+              100: '#ffecd6',
+              200: '#ffd5a8',
+              300: '#ffb870',
+              400: '#ff9535',
+              500: '#f97316',
+              600: '#ea6209',
+              700: '#c24d09',
+              800: '#9a3e0f',
+              900: '#7c340f',
+            },
+          },
+          boxShadow: {
+            card: '0 4px 24px -4px rgba(0,0,0,0.08), 0 1px 4px -1px rgba(0,0,0,0.04)',
+            'card-dark': '0 4px 24px -4px rgba(0,0,0,0.4)',
+            'btn': '0 2px 8px -1px rgba(34,162,104,0.4)',
+          },
+          animation: {
+            'fade-in': 'fadeIn 0.35s ease forwards',
+            'slide-up': 'slideUp 0.4s cubic-bezier(0.16,1,0.3,1) forwards',
+            'pop': 'pop 0.25s cubic-bezier(0.16,1,0.3,1)',
+          },
+          keyframes: {
+            fadeIn: { from: { opacity: '0' }, to: { opacity: '1' } },
+            slideUp: { from: { opacity: '0', transform: 'translateY(16px)' }, to: { opacity: '1', transform: 'translateY(0)' } },
+            pop: { '0%,100%': { transform: 'scale(1)' }, '50%': { transform: 'scale(1.06)' } },
+          },
+        },
+      },
+    };
+  </script>
+
+  <style>
+    /* ── Base & Custom Styles ────────────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; }
+
+    body {
+      font-family: 'DM Sans', sans-serif;
+      background: #f7f8f5;
+      transition: background 0.3s, color 0.3s;
+    }
+    .dark body, body.dark { background: #141814; }
+
+    /* Subtle grain overlay */
+    body::before {
+      content: '';
+      position: fixed; inset: 0; z-index: 0; pointer-events: none;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.035'/%3E%3C/svg%3E");
+      background-size: 128px;
+      opacity: 0.5;
+    }
+
+    .dark body::before { opacity: 0.12; }
+
+    /* Tab active pill */
+    .tab-btn.active {
+      background: linear-gradient(135deg, #22a268 0%, #178153 100%);
+      color: #fff;
+      box-shadow: 0 2px 10px -2px rgba(34,162,104,0.5);
+    }
+    .tab-btn:not(.active):hover {
+      background: rgba(34,162,104,0.08);
+    }
+
+    /* Smooth panel transitions */
+    .tab-panel { display: none; animation: fadeIn 0.3s ease; }
+    .tab-panel.active { display: block; }
+
+    /* Range input custom styling */
+    input[type=range] {
+      -webkit-appearance: none;
+      width: 100%;
+      height: 6px;
+      border-radius: 9999px;
+      background: linear-gradient(to right, #22a268 var(--val, 50%), #e2e8f0 var(--val, 50%));
+      outline: none;
+    }
+    .dark input[type=range] {
+      background: linear-gradient(to right, #22a268 var(--val, 50%), #374151 var(--val, 50%));
+    }
+    input[type=range]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 20px; height: 20px;
+      border-radius: 50%;
+      background: #22a268;
+      border: 3px solid #fff;
+      box-shadow: 0 1px 6px rgba(34,162,104,0.5);
+      cursor: pointer;
+      transition: transform 0.15s;
+    }
+    input[type=range]::-webkit-slider-thumb:hover { transform: scale(1.15); }
+
+    /* Number input arrows hidden */
+    input[type=number]::-webkit-inner-spin-button,
+    input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; }
+    input[type=number] { -moz-appearance: textfield; }
+
+    /* Ad block */
+    .ad-block {
+      border: 2px dashed #d1d5db;
+      background: #f9fafb;
+      border-radius: 12px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      color: #9ca3af;
+      font-size: 0.78rem;
+      font-weight: 500;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+    .dark .ad-block {
+      border-color: #374151;
+      background: #1f2937;
+      color: #6b7280;
+    }
+
+    /* Result highlight pulse */
+    @keyframes resultPop {
+      0% { background: rgba(34,162,104,0.15); }
+      100% { background: transparent; }
+    }
+    .result-flash { animation: resultPop 0.5s ease; }
+
+    /* Toggle switch */
+    .toggle-track {
+      width: 44px; height: 24px; border-radius: 9999px;
+      background: #d1d5db;
+      position: relative; cursor: pointer;
+      transition: background 0.25s;
+    }
+    .toggle-track.on { background: #22a268; }
+    .toggle-thumb {
+      position: absolute; top: 3px; left: 3px;
+      width: 18px; height: 18px; border-radius: 50%;
+      background: #fff;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+      transition: transform 0.25s cubic-bezier(0.16,1,0.3,1);
+    }
+    .toggle-track.on .toggle-thumb { transform: translateX(20px); }
+
+    /* Scrollbar */
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 9999px; }
+    .dark ::-webkit-scrollbar-thumb { background: #374151; }
+
+    /* Card hover lift */
+    .card-hover { transition: transform 0.2s, box-shadow 0.2s; }
+    .card-hover:hover { transform: translateY(-2px); box-shadow: 0 8px 32px -6px rgba(0,0,0,0.12); }
+
+    /* Thermometer bar */
+    .thermo-bar {
+      height: 12px;
+      border-radius: 9999px;
+      background: linear-gradient(to right, #3b82f6, #22a268, #f59e0b, #ef4444);
+    }
+  </style>
+</head>
+
+<body class="min-h-screen relative z-0">
+
+<!-- ╔══════════════════════════════════════════════════════════════════════╗
+     ║  ESPACE PUBLICITAIRE — LEADERBOARD HAUT DE PAGE (728x90)           ║
+     ╚══════════════════════════════════════════════════════════════════════╝ -->
+<div class="w-full flex justify-center py-2 px-4 bg-white/60 dark:bg-gray-900/60 backdrop-blur-sm border-b border-gray-100 dark:border-gray-800">
+  <div class="ad-block w-full max-w-[728px] h-[72px]">
+    <!-- CODE GOOGLE ADSENSE ICI -->
+    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/></svg>
+    Espace Publicitaire — 728×90
+  </div>
+</div>
+
+<!-- ════════════════════════ HEADER ══════════════════════════════════════ -->
+<header class="relative z-10 w-full px-4 pt-6 pb-4">
+  <div class="max-w-5xl mx-auto flex items-center justify-between gap-4">
+
+    <!-- Logo + Title -->
+    <div class="flex items-center gap-3">
+      <div class="w-10 h-10 rounded-2xl bg-gradient-to-br from-mint-400 to-mint-600 flex items-center justify-center shadow-btn flex-shrink-0">
+        <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" fill="none" viewBox="0 0 24 24" stroke="white" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/><circle cx="12" cy="12" r="10"/></svg>
+      </div>
+      <div>
+        <h1 class="font-display text-xl font-bold leading-tight text-gray-800 dark:text-gray-50">Le Convertisseur</h1>
+        <p class="text-xs text-mint-600 dark:text-mint-400 font-medium tracking-wide">de Recettes de Cuisine</p>
+      </div>
+    </div>
+
+    <!-- Dark mode toggle -->
+    <button id="themeToggle" aria-label="Basculer le thème" class="flex items-center gap-2 px-3 py-2 rounded-xl bg-white dark:bg-gray-800 shadow-card dark:shadow-card-dark border border-gray-100 dark:border-gray-700 text-sm font-medium text-gray-600 dark:text-gray-300 transition-all hover:scale-105">
+      <span id="themeIcon" class="text-base">🌙</span>
+      <div id="themeToggleTrack" class="toggle-track">
+        <div class="toggle-thumb"></div>
+      </div>
+    </button>
+  </div>
+</header>
+
+<!-- ════════════════════════ MAIN ════════════════════════════════════════ -->
+<main class="relative z-10 max-w-5xl mx-auto px-4 pb-16">
+
+  <!-- ── Tab Navigation ─────────────────────────────────────────────── -->
+  <nav class="flex gap-2 p-1.5 bg-white dark:bg-gray-800 rounded-2xl shadow-card dark:shadow-card-dark border border-gray-100 dark:border-gray-700 mb-6 overflow-x-auto" role="tablist">
+    <button class="tab-btn active flex-1 min-w-[110px] flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200 text-white" data-tab="units" role="tab" aria-selected="true">
+      <span>⚖️</span><span>Unités</span>
+    </button>
+    <button class="tab-btn flex-1 min-w-[110px] flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200 text-gray-600 dark:text-gray-300" data-tab="portions" role="tab" aria-selected="false">
+      <span>🍽️</span><span>Portions</span>
+    </button>
+    <button class="tab-btn flex-1 min-w-[110px] flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200 text-gray-600 dark:text-gray-300" data-tab="temp" role="tab" aria-selected="false">
+      <span>🌡️</span><span>Thermostat</span>
+    </button>
+  </nav>
+
+  <!-- ── Main Layout (2 cols on desktop) ────────────────────────────── -->
+  <div class="flex gap-6 items-start">
+
+    <!-- Left: Tab Content -->
+    <div class="flex-1 min-w-0">
+
+      <!-- ══════════════════ TAB 1 : UNITÉS ══════════════════════════ -->
+      <section id="tab-units" class="tab-panel active animate-slide-up" role="tabpanel">
+        <div class="bg-white dark:bg-gray-800 rounded-3xl shadow-card dark:shadow-card-dark border border-gray-100 dark:border-gray-700 p-6">
+
+          <h2 class="font-display text-2xl font-bold text-gray-800 dark:text-gray-50 mb-1">Conversion d'Unités</h2>
+          <p class="text-sm text-gray-500 dark:text-gray-400 mb-6">Volume &amp; Masse — densité selon l'ingrédient</p>
+
+          <!-- Ingredient selector -->
+          <div class="mb-5">
+            <label class="block text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Ingrédient</label>
+            <div class="flex flex-wrap gap-2" id="ingredientBtns">
+              <button class="ingr-btn active px-4 py-1.5 rounded-full text-sm font-medium border transition-all" data-ingr="flour">🌾 Farine</button>
+              <button class="ingr-btn px-4 py-1.5 rounded-full text-sm font-medium border transition-all" data-ingr="sugar">🍬 Sucre</button>
+              <button class="ingr-btn px-4 py-1.5 rounded-full text-sm font-medium border transition-all" data-ingr="butter">🧈 Beurre</button>
+              <button class="ingr-btn px-4 py-1.5 rounded-full text-sm font-medium border transition-all" data-ingr="water">💧 Eau/Lait</button>
+            </div>
+          </div>
+
+          <!-- Input row -->
+          <div class="grid grid-cols-2 gap-3 mb-6">
+            <div>
+              <label class="block text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Valeur</label>
+              <input id="unitValue" type="number" value="1" min="0" step="any"
+                class="w-full px-4 py-3 rounded-2xl border-2 border-gray-100 dark:border-gray-600 bg-gray-50 dark:bg-gray-700/60 text-gray-800 dark:text-gray-100 text-lg font-semibold focus:outline-none focus:border-mint-400 transition-colors" />
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Unité source</label>
+              <select id="unitFrom"
+                class="w-full px-4 py-3 rounded-2xl border-2 border-gray-100 dark:border-gray-600 bg-gray-50 dark:bg-gray-700/60 text-gray-800 dark:text-gray-100 text-sm font-medium focus:outline-none focus:border-mint-400 transition-colors appearance-none cursor-pointer">
+                <option value="cup">Cup (tasse US)</option>
+                <option value="tbsp">Cuillère à soupe</option>
+                <option value="tsp">Cuillère à café</option>
+                <option value="oz">Once (oz)</option>
+                <option value="ml">Millilitres (ml)</option>
+                <option value="g">Grammes (g)</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- Results grid -->
+          <div id="unitResults" class="grid grid-cols-2 sm:grid-cols-3 gap-3">
+            <!-- Filled by JS -->
+          </div>
+
+          <!-- Density note -->
+          <p id="densityNote" class="mt-4 text-xs text-gray-400 dark:text-gray-500 flex items-center gap-1.5">
+            <span>ℹ️</span> <span id="densityNoteText"></span>
+          </p>
+        </div>
+      </section>
+
+      <!-- ══════════════════ TAB 2 : PORTIONS ════════════════════════ -->
+      <section id="tab-portions" class="tab-panel" role="tabpanel">
+        <div class="bg-white dark:bg-gray-800 rounded-3xl shadow-card dark:shadow-card-dark border border-gray-100 dark:border-gray-700 p-6">
+
+          <h2 class="font-display text-2xl font-bold text-gray-800 dark:text-gray-50 mb-1">Ajusteur de Portions</h2>
+          <p class="text-sm text-gray-500 dark:text-gray-400 mb-6">Multipliez ou réduisez instantanément toutes vos doses</p>
+
+          <!-- Portions slider -->
+          <div class="grid grid-cols-2 gap-4 mb-6">
+            <div>
+              <label class="block text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Portions initiales</label>
+              <div class="flex items-center gap-3">
+                <button class="w-9 h-9 rounded-xl bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 font-bold text-lg flex items-center justify-center hover:bg-mint-100 dark:hover:bg-mint-900/30 transition-colors" onclick="stepPortion('from',-1)">−</button>
+                <input id="portionFrom" type="number" value="4" min="1" max="100"
+                  class="flex-1 text-center px-2 py-2 rounded-xl border-2 border-gray-100 dark:border-gray-600 bg-gray-50 dark:bg-gray-700/60 text-gray-800 dark:text-gray-100 text-xl font-bold focus:outline-none focus:border-mint-400 transition-colors" />
+                <button class="w-9 h-9 rounded-xl bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 font-bold text-lg flex items-center justify-center hover:bg-mint-100 dark:hover:bg-mint-900/30 transition-colors" onclick="stepPortion('from',1)">+</button>
+              </div>
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Portions voulues</label>
+              <div class="flex items-center gap-3">
+                <button class="w-9 h-9 rounded-xl bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 font-bold text-lg flex items-center justify-center hover:bg-ember-100 dark:hover:bg-ember-900/30 transition-colors" onclick="stepPortion('to',-1)">−</button>
+                <input id="portionTo" type="number" value="6" min="1" max="100"
+                  class="flex-1 text-center px-2 py-2 rounded-xl border-2 border-gray-100 dark:border-gray-600 bg-gray-50 dark:bg-gray-700/60 text-gray-800 dark:text-gray-100 text-xl font-bold focus:outline-none focus:border-mint-400 transition-colors" />
+                <button class="w-9 h-9 rounded-xl bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 font-bold text-lg flex items-center justify-center hover:bg-ember-100 dark:hover:bg-ember-900/30 transition-colors" onclick="stepPortion('to',1)">+</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Multiplier badge -->
+          <div class="flex items-center justify-center mb-6">
+            <div class="px-5 py-2 rounded-full bg-mint-50 dark:bg-mint-900/20 border border-mint-200 dark:border-mint-800 text-mint-700 dark:text-mint-400 text-sm font-semibold">
+              Multiplicateur : <span id="multiplierBadge" class="font-display text-lg font-bold">×1.50</span>
+            </div>
+          </div>
+
+          <!-- Ingredient rows -->
+          <div class="mb-4">
+            <div class="flex items-center justify-between mb-3">
+              <label class="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Ingrédients de la recette</label>
+              <button onclick="addIngredientRow()" class="flex items-center gap-1 text-xs font-semibold text-mint-600 dark:text-mint-400 hover:text-mint-700 dark:hover:text-mint-300 transition-colors">
+                <span class="text-base">＋</span> Ajouter
+              </button>
+            </div>
+
+            <div id="ingredientRows" class="space-y-2">
+              <!-- Filled by JS -->
+            </div>
+          </div>
+
+          <!-- Results -->
+          <div id="portionResults" class="mt-4 bg-mint-50 dark:bg-mint-900/10 border border-mint-100 dark:border-mint-900/30 rounded-2xl p-4 space-y-2">
+            <!-- Filled by JS -->
+          </div>
+        </div>
+      </section>
+
+      <!-- ══════════════════ TAB 3 : THERMOSTAT ══════════════════════ -->
+      <section id="tab-temp" class="tab-panel" role="tabpanel">
+        <div class="bg-white dark:bg-gray-800 rounded-3xl shadow-card dark:shadow-card-dark border border-gray-100 dark:border-gray-700 p-6">
+
+          <h2 class="font-display text-2xl font-bold text-gray-800 dark:text-gray-50 mb-1">Thermostat &amp; Températures</h2>
+          <p class="text-sm text-gray-500 dark:text-gray-400 mb-6">°C · °F · Thermostat de four</p>
+
+          <!-- 3 inputs -->
+          <div class="grid grid-cols-3 gap-3 mb-6">
+            <div class="flex flex-col items-center">
+              <label class="text-xs font-semibold text-blue-500 uppercase tracking-wider mb-2">Celsius °C</label>
+              <input id="tempC" type="number" value="180" step="1"
+                class="w-full text-center px-2 py-3 rounded-2xl border-2 border-blue-100 dark:border-blue-900/40 bg-blue-50 dark:bg-blue-900/10 text-gray-800 dark:text-gray-100 text-xl font-bold focus:outline-none focus:border-blue-400 transition-colors"
+                oninput="convertTemp('c')" />
+            </div>
+            <div class="flex flex-col items-center">
+              <label class="text-xs font-semibold text-ember-500 uppercase tracking-wider mb-2">Fahrenheit °F</label>
+              <input id="tempF" type="number" value="356" step="1"
+                class="w-full text-center px-2 py-3 rounded-2xl border-2 border-ember-100 dark:border-ember-900/40 bg-ember-50 dark:bg-ember-900/10 text-gray-800 dark:text-gray-100 text-xl font-bold focus:outline-none focus:border-ember-400 transition-colors"
+                oninput="convertTemp('f')" />
+            </div>
+            <div class="flex flex-col items-center">
+              <label class="text-xs font-semibold text-mint-600 uppercase tracking-wider mb-2">Thermostat</label>
+              <input id="tempTh" type="number" value="6" step="1" min="1" max="10"
+                class="w-full text-center px-2 py-3 rounded-2xl border-2 border-mint-100 dark:border-mint-900/40 bg-mint-50 dark:bg-mint-900/10 text-gray-800 dark:text-gray-100 text-xl font-bold focus:outline-none focus:border-mint-400 transition-colors"
+                oninput="convertTemp('th')" />
+            </div>
+          </div>
+
+          <!-- Visual thermometer bar -->
+          <div class="mb-6">
+            <div class="thermo-bar mb-1" id="thermoBar" style="width: 100%;"></div>
+            <div class="flex justify-between text-xs text-gray-400 dark:text-gray-500">
+              <span>0°C — Four froid</span>
+              <span id="thermoLabel" class="font-semibold text-gray-600 dark:text-gray-300"></span>
+              <span>300°C — Très chaud</span>
+            </div>
+          </div>
+
+          <!-- Reference table -->
+          <div class="overflow-hidden rounded-2xl border border-gray-100 dark:border-gray-700">
+            <table class="w-full text-sm">
+              <thead>
+                <tr class="bg-gray-50 dark:bg-gray-700/60">
+                  <th class="text-left px-4 py-2.5 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Thermostat</th>
+                  <th class="text-right px-4 py-2.5 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">°C</th>
+                  <th class="text-right px-4 py-2.5 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">°F</th>
+                  <th class="text-right px-4 py-2.5 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Usage</th>
+                </tr>
+              </thead>
+              <tbody id="thermoTable" class="divide-y divide-gray-50 dark:divide-gray-700/60">
+                <!-- Filled by JS -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+    </div><!-- /left col -->
+
+    <!-- ── Sidebar (desktop only) ──────────────────────────────────── -->
+    <aside class="hidden lg:flex flex-col gap-5 w-64 flex-shrink-0">
+
+      <!-- Quick tips card -->
+      <div class="bg-white dark:bg-gray-800 rounded-3xl shadow-card dark:shadow-card-dark border border-gray-100 dark:border-gray-700 p-5">
+        <h3 class="font-display text-base font-bold text-gray-800 dark:text-gray-100 mb-3 flex items-center gap-2">
+          <span>💡</span> Astuces
+        </h3>
+        <ul class="space-y-2.5 text-xs text-gray-500 dark:text-gray-400 leading-relaxed">
+          <li class="flex gap-2"><span class="text-mint-500 font-bold mt-0.5">›</span>1 cup de farine ≠ 1 cup de sucre en grammes : la densité varie !</li>
+          <li class="flex gap-2"><span class="text-mint-500 font-bold mt-0.5">›</span>Le thermostat 7 correspond à 210°C, idéal pour les rôtis.</li>
+          <li class="flex gap-2"><span class="text-mint-500 font-bold mt-0.5">›</span>Pour ajuster une recette : divisez le ratio souhaité/initial.</li>
+          <li class="flex gap-2"><span class="text-mint-500 font-bold mt-0.5">›</span>1 cuillère à soupe = 3 cuillères à café.</li>
+        </ul>
+      </div>
+
+      <!-- ╔════════════════════════════════════════════════════════╗
+           ║  ESPACE PUBLICITAIRE — SIDEBAR (300x250)              ║
+           ╚════════════════════════════════════════════════════════╝ -->
+      <div class="ad-block h-[260px]">
+        <!-- CODE GOOGLE ADSENSE ICI -->
+        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/></svg>
+        <span>Espace Publicitaire</span>
+        <span class="text-gray-300 dark:text-gray-600">300 × 250</span>
+      </div>
+
+      <!-- Reference densities -->
+      <div class="bg-white dark:bg-gray-800 rounded-3xl shadow-card dark:shadow-card-dark border border-gray-100 dark:border-gray-700 p-5">
+        <h3 class="font-display text-base font-bold text-gray-800 dark:text-gray-100 mb-3 flex items-center gap-2">
+          <span>📊</span> Densités
+        </h3>
+        <div class="space-y-2">
+          <div class="flex justify-between text-xs">
+            <span class="text-gray-500 dark:text-gray-400">🌾 Farine</span>
+            <span class="font-semibold text-gray-700 dark:text-gray-200">125 g/cup</span>
+          </div>
+          <div class="flex justify-between text-xs">
+            <span class="text-gray-500 dark:text-gray-400">🍬 Sucre blanc</span>
+            <span class="font-semibold text-gray-700 dark:text-gray-200">200 g/cup</span>
+          </div>
+          <div class="flex justify-between text-xs">
+            <span class="text-gray-500 dark:text-gray-400">🧈 Beurre</span>
+            <span class="font-semibold text-gray-700 dark:text-gray-200">227 g/cup</span>
+          </div>
+          <div class="flex justify-between text-xs">
+            <span class="text-gray-500 dark:text-gray-400">💧 Eau/Lait</span>
+            <span class="font-semibold text-gray-700 dark:text-gray-200">240 g/cup</span>
+          </div>
+        </div>
+      </div>
+
+    </aside>
+
+  </div><!-- /main layout -->
+
+  <!-- ── Mobile Ad (between content and footer) ─────────────────────── -->
+  <div class="block lg:hidden mt-6">
+    <!-- ╔════════════════════════════════════════════════════════════╗
+         ║  ESPACE PUBLICITAIRE — MOBILE (320x100)                   ║
+         ╚════════════════════════════════════════════════════════════╝ -->
+    <div class="ad-block h-[100px]">
+      <!-- CODE GOOGLE ADSENSE ICI -->
+      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/></svg>
+      <span>Espace Publicitaire — 320×100</span>
+    </div>
+  </div>
+
+</main>
+
+<!-- ════════════════════════ FOOTER ══════════════════════════════════════ -->
+<footer class="relative z-10 border-t border-gray-100 dark:border-gray-800 py-6 px-4 mt-4">
+  <div class="max-w-5xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-2 text-xs text-gray-400 dark:text-gray-500">
+    <span>© 2025 Le Convertisseur de Recettes · Zéro serveur · Données locales uniquement</span>
+    <span class="flex items-center gap-1.5">Fait avec <span class="text-ember-500">♥</span> pour les cuisiniers</span>
+  </div>
+</footer>
+
+
+<!-- ════════════════════════════════════════════════════════════════════════
+     JAVASCRIPT — PURE ES6+, MODULAIRE ET COMMENTÉ
+════════════════════════════════════════════════════════════════════════════ -->
+<script>
+"use strict";
+
+// ──────────────────────────────────────────────────────────────────────────
+// 1. CONSTANTES & CONFIG
+// ──────────────────────────────────────────────────────────────────────────
+
+/** Densités en g/ml pour chaque ingrédient (base : 1 cup US = 236.588 ml) */
+const DENSITIES = {
+  flour:  { label: 'Farine',   gPerCup: 125,  gPerMl: 125 / 236.588 },
+  sugar:  { label: 'Sucre',    gPerCup: 200,  gPerMl: 200 / 236.588 },
+  butter: { label: 'Beurre',   gPerCup: 227,  gPerMl: 227 / 236.588 },
+  water:  { label: 'Eau/Lait', gPerCup: 240,  gPerMl: 240 / 236.588 },
+};
+
+/**
+ * Facteurs de conversion en MILLILITRES (base volumique).
+ * Pour les grammes, on utilisera la densité de l'ingrédient courant.
+ */
+const ML_FACTORS = {
+  cup:  236.588,
+  tbsp: 14.787,
+  tsp:  4.929,
+  oz:   29.574,  // once liquide (fl oz)
+  ml:   1,
+};
+
+/** Unités affichées dans les résultats */
+const UNIT_LABELS = {
+  cup:  'Cup',
+  tbsp: 'c. à soupe',
+  tsp:  'c. à café',
+  oz:   'Once (oz)',
+  ml:   'ml',
+  g:    'grammes',
+};
+
+/** Table thermostat : [thermostat, celsius, fahrenheit, description] */
+const THERMO_TABLE = [
+  [1,  30,  86,  'Étuvage, déshydratation'],
+  [2,  60,  140, 'Meringues, séchage'],
+  [3,  90,  194, 'Four très doux'],
+  [4,  120, 248, 'Biscuits, madeleines'],
+  [5,  150, 302, 'Gâteaux moelleux'],
+  [6,  180, 356, 'Tartes, cakes, muffins'],
+  [7,  210, 410, 'Rôtis, gratins'],
+  [8,  240, 464, 'Pizzas, pains'],
+  [9,  270, 518, 'Grill, croûtes croustillantes'],
+  [10, 300, 572, 'Grill très chaud'],
+];
+
+// État de l'app
+let currentIngredient = 'flour';
+let portionIngredients = [];
+
+// ──────────────────────────────────────────────────────────────────────────
+// 2. THÈME SOMBRE / CLAIR
+// ──────────────────────────────────────────────────────────────────────────
+
+/**
+ * Lit la préférence de thème depuis le LocalStorage
+ * et applique la classe .dark sur <html>.
+ */
+function initTheme() {
+  const saved = localStorage.getItem('theme');
+  const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+  const isDark = saved ? saved === 'dark' : prefersDark;
+
+  document.documentElement.classList.toggle('dark', isDark);
+  updateThemeUI(isDark);
+}
+
+/** Met à jour l'icône et le toggle visuel du bouton de thème */
+function updateThemeUI(isDark) {
+  document.getElementById('themeIcon').textContent = isDark ? '☀️' : '🌙';
+  document.getElementById('themeToggleTrack').classList.toggle('on', isDark);
+}
+
+/** Bascule le thème et le persiste */
+function toggleTheme() {
+  const isDark = document.documentElement.classList.toggle('dark');
+  localStorage.setItem('theme', isDark ? 'dark' : 'light');
+  updateThemeUI(isDark);
+}
+
+document.getElementById('themeToggle').addEventListener('click', toggleTheme);
+
+// ──────────────────────────────────────────────────────────────────────────
+// 3. NAVIGATION PAR ONGLETS
+// ──────────────────────────────────────────────────────────────────────────
+
+/** Sélectionne l'onglet actif et affiche le bon panneau */
+function selectTab(tabName) {
+  // Boutons
+  document.querySelectorAll('.tab-btn').forEach(btn => {
+    const isActive = btn.dataset.tab === tabName;
+    btn.classList.toggle('active', isActive);
+    btn.setAttribute('aria-selected', isActive);
+    if (!isActive) {
+      btn.classList.remove('text-white');
+      btn.classList.add('text-gray-600', 'dark:text-gray-300');
+    } else {
+      btn.classList.add('text-white');
+      btn.classList.remove('text-gray-600', 'dark:text-gray-300');
+    }
+  });
+
+  // Panneaux
+  document.querySelectorAll('.tab-panel').forEach(panel => {
+    panel.classList.toggle('active', panel.id === `tab-${tabName}`);
+  });
+
+  // Persiste le dernier onglet
+  localStorage.setItem('lastTab', tabName);
+}
+
+// Attacher les événements
+document.querySelectorAll('.tab-btn').forEach(btn => {
+  btn.addEventListener('click', () => selectTab(btn.dataset.tab));
+});
+
+// Restaurer le dernier onglet
+const lastTab = localStorage.getItem('lastTab');
+if (lastTab) selectTab(lastTab);
+
+// ──────────────────────────────────────────────────────────────────────────
+// 4. ONGLET 1 — CONVERSION D'UNITÉS
+// ──────────────────────────────────────────────────────────────────────────
+
+/** Styles des boutons d'ingrédient */
+function updateIngredientBtns(active) {
+  document.querySelectorAll('.ingr-btn').forEach(btn => {
+    const isActive = btn.dataset.ingr === active;
+    btn.className = [
+      'ingr-btn px-4 py-1.5 rounded-full text-sm font-medium border transition-all',
+      isActive
+        ? 'bg-mint-500 border-mint-500 text-white shadow-btn'
+        : 'bg-white dark:bg-gray-700 border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-300 hover:border-mint-300',
+    ].join(' ');
+  });
+}
+
+/**
+ * Convertit `value` de `fromUnit` vers toutes les autres unités,
+ * en tenant compte de la densité de l'ingrédient courant.
+ */
+function convertUnits() {
+  const raw = parseFloat(document.getElementById('unitValue').value);
+  const fromUnit = document.getElementById('unitFrom').value;
+  if (isNaN(raw) || raw < 0) { renderUnitResults({}); return; }
+
+  const density = DENSITIES[currentIngredient]; // { gPerCup, gPerMl }
+
+  // Convertir la valeur source en millilitres (ou grammes si source = g)
+  let valueInMl;
+  if (fromUnit === 'g') {
+    valueInMl = raw / density.gPerMl;
+  } else {
+    valueInMl = raw * ML_FACTORS[fromUnit];
+  }
+
+  // Calculer toutes les conversions
+  const results = {};
+  for (const [unit, factor] of Object.entries(ML_FACTORS)) {
+    if (unit === fromUnit) continue;
+    results[unit] = valueInMl / factor;
+  }
+  // Grammes via densité
+  if (fromUnit !== 'g') {
+    results['g'] = valueInMl * density.gPerMl;
+  }
+
+  renderUnitResults(results, fromUnit);
+
+  // Note sur la densité
+  document.getElementById('densityNoteText').textContent =
+    `Densité utilisée pour ${density.label} : ${density.gPerCup} g/cup · ${(density.gPerMl).toFixed(3)} g/ml`;
+}
+
+/** Affiche les cartes de résultats */
+function renderUnitResults(results, fromUnit) {
+  const container = document.getElementById('unitResults');
+  const html = Object.entries(results).map(([unit, val]) => {
+    const formatted = formatNumber(val);
+    const label = UNIT_LABELS[unit];
+    return `
+      <div class="result-flash bg-gray-50 dark:bg-gray-700/50 rounded-2xl p-4 border border-gray-100 dark:border-gray-700 text-center card-hover">
+        <div class="text-2xl font-display font-bold text-mint-600 dark:text-mint-400">${formatted}</div>
+        <div class="text-xs font-semibold text-gray-400 dark:text-gray-500 mt-1 uppercase tracking-wider">${label}</div>
+      </div>`;
+  }).join('');
+  container.innerHTML = html;
+}
+
+/** Formate un nombre pour l'affichage : arrondi intelligent */
+function formatNumber(n) {
+  if (n === 0) return '0';
+  if (n < 0.01) return n.toExponential(2);
+  if (n < 1) return parseFloat(n.toFixed(3)).toString();
+  if (n < 100) return parseFloat(n.toFixed(2)).toString();
+  return parseFloat(n.toFixed(1)).toString();
+}
+
+// Sélecteurs d'ingrédient
+document.querySelectorAll('.ingr-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    currentIngredient = btn.dataset.ingr;
+    updateIngredientBtns(currentIngredient);
+    convertUnits();
+  });
+});
+
+// Inputs
+document.getElementById('unitValue').addEventListener('input', convertUnits);
+document.getElementById('unitFrom').addEventListener('change', convertUnits);
+
+// Init
+updateIngredientBtns(currentIngredient);
+convertUnits();
+
+// ──────────────────────────────────────────────────────────────────────────
+// 5. ONGLET 2 — AJUSTEUR DE PORTIONS
+// ──────────────────────────────────────────────────────────────────────────
+
+/** Données par défaut pour les ingrédients de démo */
+const DEFAULT_INGREDIENTS = [
+  { name: 'Farine',  qty: '200', unit: 'g' },
+  { name: 'Sucre',   qty: '100', unit: 'g' },
+  { name: 'Beurre',  qty: '80',  unit: 'g' },
+  { name: 'Oeufs',   qty: '2',   unit: 'pcs' },
+  { name: 'Lait',    qty: '150', unit: 'ml' },
+];
+
+/** Initialise la liste des ingrédients */
+function initPortionIngredients() {
+  portionIngredients = DEFAULT_INGREDIENTS.map((item, i) => ({ ...item, id: i }));
+  renderIngredientRows();
+  calcPortions();
+}
+
+/** Ajoute une ligne d'ingrédient */
+function addIngredientRow() {
+  const newId = portionIngredients.length
+    ? Math.max(...portionIngredients.map(x => x.id)) + 1
+    : 0;
+  portionIngredients.push({ id: newId, name: '', qty: '100', unit: 'g' });
+  renderIngredientRows();
+  calcPortions();
+  // Focus sur le nouveau champ nom
+  setTimeout(() => {
+    const inputs = document.querySelectorAll('.ingr-name-input');
+    if (inputs.length) inputs[inputs.length - 1].focus();
+  }, 50);
+}
+
+/** Supprime un ingrédient par id */
+function removeIngredientRow(id) {
+  portionIngredients = portionIngredients.filter(x => x.id !== id);
+  renderIngredientRows();
+  calcPortions();
+}
+
+/** Met à jour un champ d'ingrédient */
+function updateIngredient(id, field, value) {
+  const item = portionIngredients.find(x => x.id === id);
+  if (item) { item[field] = value; calcPortions(); }
+}
+
+/** Rendu de la liste des lignes d'ingrédients */
+function renderIngredientRows() {
+  const container = document.getElementById('ingredientRows');
+  container.innerHTML = portionIngredients.map(item => `
+    <div class="flex items-center gap-2 animate-fade-in" data-id="${item.id}">
+      <input type="text" value="${item.name}" placeholder="Ingrédient…"
+        class="ingr-name-input flex-1 px-3 py-2 rounded-xl border-2 border-gray-100 dark:border-gray-600 bg-gray-50 dark:bg-gray-700/60 text-gray-800 dark:text-gray-100 text-sm focus:outline-none focus:border-mint-400 transition-colors"
+        oninput="updateIngredient(${item.id},'name',this.value)" />
+      <input type="number" value="${item.qty}" min="0" step="any"
+        class="w-20 text-center px-2 py-2 rounded-xl border-2 border-gray-100 dark:border-gray-600 bg-gray-50 dark:bg-gray-700/60 text-gray-800 dark:text-gray-100 text-sm font-bold focus:outline-none focus:border-mint-400 transition-colors"
+        oninput="updateIngredient(${item.id},'qty',this.value)" />
+      <select class="px-2 py-2 rounded-xl border-2 border-gray-100 dark:border-gray-600 bg-gray-50 dark:bg-gray-700/60 text-gray-700 dark:text-gray-200 text-xs focus:outline-none focus:border-mint-400 transition-colors cursor-pointer"
+        onchange="updateIngredient(${item.id},'unit',this.value)">
+        ${['g','ml','kg','L','cup','tbsp','tsp','pcs','pinch'].map(u =>
+          `<option value="${u}" ${item.unit === u ? 'selected' : ''}>${u}</option>`
+        ).join('')}
+      </select>
+      <button onclick="removeIngredientRow(${item.id})" class="w-8 h-8 flex items-center justify-center rounded-lg text-gray-300 dark:text-gray-600 hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-all text-lg font-bold">×</button>
+    </div>
+  `).join('');
+}
+
+/** Incrémente/décrémente les champs de portions */
+function stepPortion(which, delta) {
+  const el = document.getElementById(which === 'from' ? 'portionFrom' : 'portionTo');
+  const val = Math.max(1, (parseInt(el.value) || 1) + delta);
+  el.value = val;
+  calcPortions();
+}
+
+/** Calcule et affiche les portions ajustées */
+function calcPortions() {
+  const from = parseFloat(document.getElementById('portionFrom').value) || 4;
+  const to   = parseFloat(document.getElementById('portionTo').value)   || 6;
+  const mult = to / from;
+
+  document.getElementById('multiplierBadge').textContent = `×${mult.toFixed(2)}`;
+
+  const resultsContainer = document.getElementById('portionResults');
+  if (!portionIngredients.length) {
+    resultsContainer.innerHTML = '<p class="text-sm text-gray-400 text-center py-2">Ajoutez des ingrédients ci-dessus.</p>';
+    return;
+  }
+
+  const rows = portionIngredients.map(item => {
+    const original = parseFloat(item.qty) || 0;
+    const adjusted = original * mult;
+    const name = item.name || 'Ingrédient';
+    return `
+      <div class="flex items-center justify-between result-flash py-1">
+        <span class="text-sm font-medium text-gray-700 dark:text-gray-200 flex-1">${name}</span>
+        <span class="text-xs text-gray-400 dark:text-gray-500 mx-3">${formatNumber(original)} ${item.unit}</span>
+        <span class="text-base font-display font-bold text-mint-600 dark:text-mint-400">${formatNumber(adjusted)} ${item.unit}</span>
+      </div>
+    `;
+  }).join('');
+
+  resultsContainer.innerHTML = `
+    <div class="flex items-center justify-between mb-2">
+      <span class="text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider">Ingrédient</span>
+      <span class="text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider">Original → Ajusté</span>
+    </div>
+    <div class="divide-y divide-mint-100 dark:divide-mint-900/20">${rows}</div>
+    <div class="mt-3 pt-3 border-t border-mint-200 dark:border-mint-800 flex items-center justify-between">
+      <span class="text-xs font-semibold text-mint-700 dark:text-mint-400">Pour ${to} portion${to > 1 ? 's' : ''}</span>
+      <span class="text-xs text-gray-400">× ${mult.toFixed(3)}</span>
+    </div>
+  `;
+}
+
+document.getElementById('portionFrom').addEventListener('input', calcPortions);
+document.getElementById('portionTo').addEventListener('input', calcPortions);
+
+initPortionIngredients();
+
+// ──────────────────────────────────────────────────────────────────────────
+// 6. ONGLET 3 — THERMOSTAT & TEMPÉRATURES
+// ──────────────────────────────────────────────────────────────────────────
+
+/**
+ * Convertit une température selon la source ('c', 'f', 'th')
+ * et met à jour les deux autres champs.
+ */
+function convertTemp(source) {
+  const elC  = document.getElementById('tempC');
+  const elF  = document.getElementById('tempF');
+  const elTh = document.getElementById('tempTh');
+
+  let celsius;
+
+  if (source === 'c') {
+    celsius = parseFloat(elC.value) || 0;
+    elF.value  = Math.round(celsius * 9/5 + 32);
+    elTh.value = Math.max(1, Math.min(10, Math.round(celsius / 30)));
+  } else if (source === 'f') {
+    const f = parseFloat(elF.value) || 32;
+    celsius = (f - 32) * 5/9;
+    elC.value  = Math.round(celsius);
+    elTh.value = Math.max(1, Math.min(10, Math.round(celsius / 30)));
+  } else if (source === 'th') {
+    const th = Math.max(1, Math.min(10, parseInt(elTh.value) || 1));
+    celsius = th * 30;
+    elC.value = celsius;
+    elF.value = Math.round(celsius * 9/5 + 32);
+  }
+
+  updateThermoBar(celsius);
+  highlightThermoRow(Math.max(1, Math.min(10, Math.round(celsius / 30))));
+}
+
+/** Met à jour la barre de visualisation de température */
+function updateThermoBar(celsius) {
+  const pct = Math.min(100, Math.max(0, (celsius / 300) * 100));
+  document.getElementById('thermoBar').style.width = `${pct}%`;
+
+  let label = '';
+  if (celsius <= 60)  label = '🧊 Four doux';
+  else if (celsius <= 150) label = '🌡️ Four modéré';
+  else if (celsius <= 210) label = '🔥 Four chaud';
+  else label = '🔴 Four très chaud';
+  document.getElementById('thermoLabel').textContent = `${Math.round(celsius)}°C — ${label}`;
+}
+
+/** Rend la table de référence des thermostats */
+function renderThermoTable() {
+  const tbody = document.getElementById('thermoTable');
+  tbody.innerHTML = THERMO_TABLE.map(([th, c, f, desc]) => `
+    <tr id="thermo-row-${th}" class="hover:bg-mint-50 dark:hover:bg-mint-900/10 transition-colors cursor-pointer"
+        onclick="selectThermoRow(${th})">
+      <td class="px-4 py-2.5">
+        <span class="inline-flex items-center justify-center w-7 h-7 rounded-lg bg-gray-100 dark:bg-gray-700 text-xs font-bold text-gray-600 dark:text-gray-300">
+          ${th}
+        </span>
+      </td>
+      <td class="px-4 py-2.5 text-right font-semibold text-blue-600 dark:text-blue-400 text-sm">${c}°C</td>
+      <td class="px-4 py-2.5 text-right font-semibold text-ember-600 dark:text-ember-400 text-sm">${f}°F</td>
+      <td class="px-4 py-2.5 text-right text-xs text-gray-500 dark:text-gray-400 hidden sm:table-cell">${desc}</td>
+    </tr>
+  `).join('');
+}
+
+/** Sélectionne une ligne de la table et remplit les inputs */
+function selectThermoRow(th) {
+  document.getElementById('tempTh').value = th;
+  convertTemp('th');
+}
+
+/** Surligne la ligne active dans la table */
+function highlightThermoRow(th) {
+  document.querySelectorAll('[id^="thermo-row-"]').forEach(row => {
+    const rowTh = parseInt(row.id.replace('thermo-row-', ''));
+    row.classList.toggle('bg-mint-50', rowTh === th);
+    row.classList.toggle('dark:bg-mint-900/10', rowTh === th);
+    row.classList.toggle('font-bold', rowTh === th);
+  });
+}
+
+renderThermoTable();
+convertTemp('c'); // Init avec 180°C
+
+// ──────────────────────────────────────────────────────────────────────────
+// 7. INITIALISATION FINALE
+// ──────────────────────────────────────────────────────────────────────────
+
+// Appliquer le thème au démarrage
+initTheme();
+
+// Restaurer les préférences d'unité
+const savedUnit = localStorage.getItem('defaultUnit');
+if (savedUnit) document.getElementById('unitFrom').value = savedUnit;
+document.getElementById('unitFrom').addEventListener('change', (e) => {
+  localStorage.setItem('defaultUnit', e.target.value);
+});
+
+</script>
+</body>
+</html>
